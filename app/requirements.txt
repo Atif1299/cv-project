@@ -1,0 +1,9 @@
+Flask
+tensorflow
+keras
+numpy
+Pillow
+gunicorn
+jinja2
+protobuf
+h5py
