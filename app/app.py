@@ -13,17 +13,41 @@ from PIL import Image
 app = Flask(__name__)
 
 # -----------------------------------
-# Load tokenizer & model
+# Global variables for lazy loading
 # -----------------------------------
 TOKENIZER_PATH = "saved/tokenizer.p"
 MODEL_WEIGHTS_PATH = "saved/model_5.h5"
 
-tokenizer = load(open(TOKENIZER_PATH, "rb"))
-vocab_size = len(tokenizer.word_index) + 1
+tokenizer = None
+vocab_size = None
 max_length = 32
+index_to_word = None
+model = None
+xception_model = None
 
-# Faster lookup dictionary
-index_to_word = {v: k for k, v in tokenizer.word_index.items()}
+
+# -----------------------------------
+# Lazy load models (only on first request)
+# -----------------------------------
+def load_models():
+    global tokenizer, vocab_size, index_to_word, model, xception_model
+    
+    if model is None:
+        print("🔥 Loading models for the first time...")
+        
+        # Load tokenizer
+        tokenizer = load(open(TOKENIZER_PATH, "rb"))
+        vocab_size = len(tokenizer.word_index) + 1
+        index_to_word = {v: k for k, v in tokenizer.word_index.items()}
+        
+        # Build and load caption model
+        model = define_model(vocab_size, max_length)
+        model.load_weights(MODEL_WEIGHTS_PATH)
+        
+        # Load Xception
+        xception_model = Xception(include_top=False, pooling="avg")
+        
+        print("✅ Models loaded successfully!")
 
 
 # -----------------------------------
@@ -47,13 +71,6 @@ def define_model(vocab_size, max_length):
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     return model
-
-
-model = define_model(vocab_size, max_length)
-model.load_weights(MODEL_WEIGHTS_PATH)
-
-# Xception feature extractor
-xception_model = Xception(include_top=False, pooling="avg")
 
 
 # -----------------------------------
@@ -121,6 +138,9 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    # Load models on first request
+    load_models()
+    
     try:
         print("🔥 Request received")
         if "image" not in request.files:
