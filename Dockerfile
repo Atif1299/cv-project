@@ -9,20 +9,21 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application files from app/app directory
-COPY app/app/requirements.txt .
-COPY app/app/ .
+# Copy requirements first for better caching
+COPY app/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port (Cloud Run will set PORT env variable)
+# Copy all app files
+COPY app/ .
+
+# Expose port
 EXPOSE 8080
 
-# Set environment variable for production
+# Set environment variables
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
 # Use gunicorn for production
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
-
