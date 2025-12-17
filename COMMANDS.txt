@@ -1,0 +1,196 @@
+========================================
+ 🚀 EXACT COMMANDS FOR GCP CLOUD RUN
+========================================
+
+PREREQUISITES:
+-------------
+1. Install gcloud CLI: https://cloud.google.com/sdk/docs/install
+2. Have a GCP account with billing enabled
+3. Have your project files ready
+
+
+METHOD 1: FASTEST - ONE COMMAND DEPLOY
+========================================
+
+# Step 1: Login to GCP
+gcloud auth login
+
+# Step 2: Set your project (create one first if needed)
+gcloud config set project YOUR_PROJECT_ID
+
+# Step 3: Deploy (from root directory)
+gcloud run deploy image-captioning-app --source ./app/app --region us-central1 --allow-unauthenticated --memory 4Gi --cpu 2
+
+# That's it! Your app will be live at the URL shown
+
+
+METHOD 2: AUTO-DEPLOY FROM GITHUB
+========================================
+
+# Step 1: Enable APIs
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable run.googleapis.com
+
+# Step 2: Grant permissions
+PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)")
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" --role="roles/run.admin"
+gcloud iam service-accounts add-iam-policy-binding ${PROJECT_NUMBER}-compute@developer.gserviceaccount.com --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" --role="roles/iam.serviceAccountUser"
+
+# Step 3: Connect GitHub
+# Go to: https://console.cloud.google.com/cloud-build/triggers
+# Click "Connect Repository" → GitHub → Authorize → Select Repo
+# Create Trigger:
+#   - Name: deploy-image-captioning
+#   - Event: Push to branch
+#   - Branch: ^main$
+#   - Configuration: cloudbuild.yaml
+
+# Step 4: Push to GitHub
+git add .
+git commit -m "Deploy to Cloud Run"
+git push origin main
+
+# Now every push to main auto-deploys!
+
+
+METHOD 3: MANUAL WITH DOCKER
+========================================
+
+# Step 1: Set project
+gcloud config set project YOUR_PROJECT_ID
+
+# Step 2: Enable APIs
+gcloud services enable run.googleapis.com
+gcloud services enable containerregistry.googleapis.com
+
+# Step 3: Build image
+cd app/app
+docker build -t gcr.io/YOUR_PROJECT_ID/image-captioning-app .
+
+# Step 4: Push to registry
+docker push gcr.io/YOUR_PROJECT_ID/image-captioning-app
+
+# Step 5: Deploy
+gcloud run deploy image-captioning-app --image gcr.io/YOUR_PROJECT_ID/image-captioning-app --platform managed --region us-central1 --allow-unauthenticated --memory 4Gi --cpu 2 --timeout 300
+
+
+USEFUL COMMANDS
+========================================
+
+# View logs
+gcloud run services logs read image-captioning-app --region us-central1
+
+# Get service URL
+gcloud run services describe image-captioning-app --region us-central1 --format 'value(status.url)'
+
+# Update memory
+gcloud run services update image-captioning-app --memory 8Gi --region us-central1
+
+# Update CPU
+gcloud run services update image-captioning-app --cpu 4 --region us-central1
+
+# Set min instances (avoid cold starts)
+gcloud run services update image-captioning-app --min-instances 1 --region us-central1
+
+# Delete service
+gcloud run services delete image-captioning-app --region us-central1
+
+# List all Cloud Run services
+gcloud run services list
+
+# Check build history
+gcloud builds list --limit 5
+
+# View specific build log
+gcloud builds log BUILD_ID
+
+
+TESTING COMMANDS
+========================================
+
+# Test API with curl
+curl -X POST https://YOUR-APP-URL/predict -F "image=@test.jpg"
+
+# Health check
+curl https://YOUR-APP-URL/
+
+# Monitor in real-time
+gcloud run services logs tail image-captioning-app --region us-central1
+
+
+TROUBLESHOOTING COMMANDS
+========================================
+
+# If build fails - check logs
+gcloud builds list
+gcloud builds log <BUILD_ID>
+
+# If service fails - check logs
+gcloud run services logs read image-captioning-app --region us-central1 --limit 50
+
+# Check current configuration
+gcloud run services describe image-captioning-app --region us-central1
+
+# Force new deployment
+gcloud run deploy image-captioning-app --image gcr.io/YOUR_PROJECT_ID/image-captioning-app:latest --region us-central1
+
+
+COST MANAGEMENT
+========================================
+
+# Set max instances
+gcloud run services update image-captioning-app --max-instances 5 --region us-central1
+
+# View pricing
+# Visit: https://cloud.google.com/run/pricing
+
+# Monitor usage
+# GCP Console → Cloud Run → Your Service → Metrics
+
+
+REGIONS (Choose closest to your users)
+========================================
+
+us-central1 (Iowa)
+us-east1 (South Carolina)
+us-west1 (Oregon)
+europe-west1 (Belgium)
+asia-east1 (Taiwan)
+asia-northeast1 (Tokyo)
+
+
+REPLACE THESE VALUES:
+========================================
+
+YOUR_PROJECT_ID     → Your GCP project ID (e.g., my-project-123456)
+YOUR-APP-URL        → The URL you get after deployment
+BUILD_ID            → From 'gcloud builds list'
+
+
+NOTES:
+========================================
+
+1. First deployment takes 5-10 minutes
+2. Subsequent deploys are faster (2-3 minutes)
+3. Free tier: 2 million requests/month
+4. Charges only when serving requests
+5. Scales to zero when idle (no cost)
+6. Model files (saved/model_5.h5, saved/tokenizer.p) must be in repo
+7. If model file > 100MB, use Git LFS or Cloud Storage
+
+
+QUICK REFERENCE - MOST USED
+========================================
+
+# Deploy from source (easiest)
+gcloud run deploy image-captioning-app --source ./app/app --region us-central1 --allow-unauthenticated --memory 4Gi --cpu 2
+
+# View URL
+gcloud run services describe image-captioning-app --region us-central1 --format 'value(status.url)'
+
+# View logs
+gcloud run services logs read image-captioning-app --region us-central1
+
+# Update and redeploy
+gcloud run deploy image-captioning-app --source ./app/app --region us-central1
+
