@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY app/requirements.txt .
+COPY app/app/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all app files
-COPY app/ .
+# Copy all app files from app/app/
+COPY app/app/ .
 
 # Expose port
 EXPOSE 8080
